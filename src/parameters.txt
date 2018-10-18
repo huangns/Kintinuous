@@ -1,0 +1,64 @@
+#dataset path
+#dataset_path=../datasets/rgbd_dataset_freiburg1_xyz/
+#dataset_path=../datasets/rgbd_dataset_freiburg3_long_office_household/
+#dataset_path=../datasets/rgbd_dataset_freiburg1_plant/
+#dataset_path=../datasets/rgbd_dataset_freiburg1_room/
+#dataset_path=../datasets/rgbd_dataset_freiburg1_floor/
+#dataset_path=../datasets/rgbd_dataset_freiburg2_large_with_loop/
+#ICL
+#0
+#dataset_path=/home/h/Codes/Kintinuous_Planar/datasets/living_room_traj0n_frei_png/
+#1
+dataset_path=/home/h/HCodes/Kintinuous_Planar-master/datasets/living_room_traj1n_frei_png/
+#2 /home/h/Codes/Kintinuous_Planar/datasets/living_room_traj2n_frei_png
+#dataset_path=/home/h/Codes/Kintinuous_Planar/datasets/living_room_traj2n_frei_png/
+#3
+#dataset_path=/home/h/Codes/Kintinuous_Planar/datasets/living_room_traj3n_frei_png/
+
+#camera
+#fr1
+# focal length x
+#fx=517.3 
+# focal length y
+#fy=516.5  
+# optical center x
+#cx=318.6 
+# optical center y 
+#cy=255.3  
+# for the 16-bit PNG files
+factor = 5000 
+
+#camera
+#fr2
+# focal length x
+#fx=520.9 
+# focal lngth y
+#fy=521.0  
+# optical center x
+#cx=325.1
+# optical center y 
+#cy=249.7  
+# for the 16-bit PNG files
+
+
+#camera
+#fr3
+# focal length x
+#fx=535.4 
+# focal length y
+#fy=539.2  
+# optical center x
+#cx=320.1
+# optical center y 
+#cy=247.6 
+#for the 16-bit PNG files 
+usepriori=1
+use_three_criteria=1
+usePoseGraph=1
+useLoop=1
+#ICL data
+fx=481.20
+fy=-480.00
+cx=319.50
+cy=239.50
+

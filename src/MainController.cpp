@@ -18,23 +18,19 @@
 
 #include "MainController.h"
 
-#include <boost/filesystem.hpp>
-#include <boost/algorithm/algorithm.hpp>
-#include <boost/algorithm/string.hpp>
-
 MainController * MainController::controller = 0;
 
 MainController::MainController(int argc, char * argv[])
- : depthIntrinsics(0),
-   pangoVis(0),
-   trackerInterface(0),
-   meshGenerator(0),
-   placeRecognition(0),
-   cloudSliceProcessor(0),
-   deformation(0),
-   rawRead(0),
-   liveRead(0),
-   logRead(0)
+        : depthIntrinsics(0),
+          pangoVis(0),
+          trackerInterface(0),
+          meshGenerator(0),
+          placeRecognition(0),
+          cloudSliceProcessor(0),
+          deformation(0),
+          rawRead(0),
+          liveRead(0),
+          logRead(0)
 {
     ConfigArgs::get(argc, argv);
 
@@ -66,6 +62,8 @@ int MainController::start()
 bool MainController::setup()
 {
     pcl::console::setVerbosityLevel(pcl::console::L_ALWAYS);
+
+    Resolution::get(640, 480);
 
     Volume::get(ConfigArgs::get().volumeSize);
 
@@ -119,14 +117,31 @@ bool MainController::setup()
     {
         ThreadDataPack::get().meshGeneratorFinished.assignValue(true);
     }
-
+//check for
     if(ConfigArgs::get().vocabFile.size() && ConfigArgs::get().onlineDeformation)
     {
-        deformation = new Deformation;
+/*
+        deformation = new Deformation(depthIntrinsics);
+        //placeRecognition = new PlaceRecognition(depthIntrinsics);
+
+        systemComponents.push_back(deformation);
+        //systemComponents.push_back(placeRecognition);
+*/
+/*
+        deformation = new Deformation(depthIntrinsics);
         placeRecognition = new PlaceRecognition(depthIntrinsics);
 
         systemComponents.push_back(deformation);
         systemComponents.push_back(placeRecognition);
+*/
+
+ deformation = new Deformation;
+        placeRecognition = new PlaceRecognition(depthIntrinsics);
+
+        systemComponents.push_back(deformation);
+systemComponents.push_back(placeRecognition);
+
+
     }
     else
     {
@@ -180,54 +195,35 @@ int MainController::mainLoop()
 
     return 0;
 }
-
+//check for
 void MainController::loadCalibration()
 {
-    const std::string& calFile = ConfigArgs::get().calibrationFile;
-    if(calFile.length() > 0)
+    static ParameterReader pd;
+
+    double dcx = atof( pd.getData("cx").c_str() );
+    double dcy = atof( pd.getData("cy").c_str() );
+    double dfx = atof( pd.getData("fx").c_str() );
+    double dfy = atof( pd.getData("fy").c_str() );
+
+
+    if(ConfigArgs::get().calibrationFile.length() > 0)
     {
-        std::string extension = boost::filesystem::extension(calFile);
-        boost::algorithm::to_lower(extension);
-
-        if(extension == ".xml" || extension == ".yml"){
-            // Traditional kintinuous format (opencv)
-            cv::FileStorage calibrationFile(calFile.c_str(), cv::FileStorage::READ);
-            depthIntrinsics = new cv::Mat((CvMat *) calibrationFile["depth_intrinsics"].readObj(), true);
-        } else {
-            // ElasticFusion format
-            std::ifstream file(calFile);
-            std::string line;
-
-            if(file.eof())
-              throw std::invalid_argument("Could not read calibration file.");
-
-            double fx, fy, cx, cy, w, h;
-            std::getline(file, line);
-            int n = sscanf(line.c_str(), "%lg %lg %lg %lg %lg %lg", &fx, &fy, &cx, &cy, &w, &h);
-
-            if (n != 4 && n != 6)
-              throw std::invalid_argument("Ooops, your calibration file should contain a single line with [fx fy cx cy] or [fx fy cx cy w h]");
-
-            depthIntrinsics = new cv::Mat(cv::Mat::zeros(3, 3, CV_64F));
-            depthIntrinsics->at<double>(0, 2) = cx;
-            depthIntrinsics->at<double>(1, 2) = cy;
-            depthIntrinsics->at<double>(0, 0) = fx;
-            depthIntrinsics->at<double>(1, 1) = fy;
-            depthIntrinsics->at<double>(2, 2) = 1;
-            if (n == 6) Resolution::get(w, h);
-        }
+        cv::FileStorage calibrationFile(ConfigArgs::get().calibrationFile.c_str(), cv::FileStorage::READ);
+        depthIntrinsics = new cv::Mat((CvMat *) calibrationFile["depth_intrinsics"].readObj(), true);
     }
     else
     {
         depthIntrinsics = new cv::Mat(cv::Mat::zeros(3, 3, CV_64F));
-        depthIntrinsics->at<double>(0, 2) = 320;
-        depthIntrinsics->at<double>(1, 2) = 267;
-        depthIntrinsics->at<double>(0, 0) = 528.01442863461716;
-        depthIntrinsics->at<double>(1, 1) = 528.01442863461716;
+        //depthIntrinsics->at<double>(0, 2) = 319.5;
+        //depthIntrinsics->at<double>(1, 2) = 239.5;
+        //depthIntrinsics->at<double>(0, 0) = 481.2;
+        //depthIntrinsics->at<double>(1, 1) = -480.0;
+        depthIntrinsics->at<double>(0, 2) = dcx;
+        depthIntrinsics->at<double>(1, 2) = dcy;
+        depthIntrinsics->at<double>(0, 0) = dfx;
+        depthIntrinsics->at<double>(1, 1) = dfy;
         depthIntrinsics->at<double>(2, 2) = 1;
     }
-
-    Resolution::get(640, 480);
 }
 
 void MainController::complete()

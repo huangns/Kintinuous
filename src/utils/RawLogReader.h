@@ -21,6 +21,8 @@
 
 #include "LogReader.h"
 #include <boost/filesystem.hpp>
+using namespace std;
+using namespace cv;
 
 class RawLogReader : public LogReader
 {
@@ -35,7 +37,24 @@ class RawLogReader : public LogReader
         FILE * fp;
         int32_t numFrames;
         int currentFrame;
+	
+	vector<int64_t> timestamps;
+        vector<string> rgbNames,depthNames;
+        vector<cv::Mat> colorImgs, depthImgs;    // 彩色图和深度图
+        
+        string defaultname = "../dataset/rgbd_dataset_freiburg1_xyz/";
+    string rgb_txt_file;
+    string depth_txt_file;
+    string assoc_txt_file;
 
+
+       // string defaultname = "../dataset/rgbd_dataset_freiburg3_long_office_household/";
+//string defaultname = ParameterReader::get().getData("dataset_path");
+/*
+        string rgb_txt_file = defaultname+"rgb.txt";
+        string depth_txt_file = defaultname+"depth.txt";
+	string assoc_txt_file = defaultname+"associate.txt";
+*/
         bool hasMore();
         void readNext();
 };

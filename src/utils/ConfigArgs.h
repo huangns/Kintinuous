@@ -23,6 +23,7 @@
 #include <cassert>
 #include <string>
 #include <pcl/console/parse.h>
+#include "ParameterReader.h"
 
 class ConfigArgs
 {
