@@ -78,6 +78,8 @@ CloudSlice::Odometry ICPOdometry::getIncrementalTransformation(Eigen::Vector3f &
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rcurr = Rprev;
     Eigen::Vector3f tcurr = tprev;
 
+    
+    
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rprev_inv = Rprev.inverse();
     Mat33 & device_Rprev_inv = device_cast<Mat33>(Rprev_inv);
     float3& device_tprev = device_cast<float3>(tprev);

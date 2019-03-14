@@ -134,12 +134,21 @@ bool MainController::setup()
         systemComponents.push_back(deformation);
         systemComponents.push_back(placeRecognition);
 */
-
+/*
  deformation = new Deformation;
         placeRecognition = new PlaceRecognition(depthIntrinsics);
 
         systemComponents.push_back(deformation);
 systemComponents.push_back(placeRecognition);
+*/
+
+ deformation = new Deformation;
+        //placeRecognition = new PlaceRecognition(depthIntrinsics);
+
+        systemComponents.push_back(deformation);
+//systemComponents.push_back(placeRecognition);
+
+
 
 
     }

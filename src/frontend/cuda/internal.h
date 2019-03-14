@@ -297,7 +297,7 @@ struct LightSource
   * \param[out] dst output map
   */
 void bilateralFilter (const DeviceArray2D<unsigned short>& src, DeviceArray2D<unsigned short>& dst);
-
+void bilateralFilter2(const DeviceArray2D<unsigned short>& src, DeviceArray2D<unsigned short>& dst,const DeviceArray2D<float>& nmap);
 void computeDerivativeImages(DeviceArray2D<unsigned char>& src, DeviceArray2D<short>& dx, DeviceArray2D<short>& dy);
 
 /** \brief Computes depth pyramid

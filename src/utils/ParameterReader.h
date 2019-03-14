@@ -16,7 +16,7 @@ using namespace std;
 class ParameterReader
 {
 public:
-    ParameterReader( string filename="../parameters.txt" )
+    ParameterReader( string filename="/home/h/HCode/datasets/parameters.txt" )
     {
         ifstream fin( filename.c_str() );
         if (!fin)

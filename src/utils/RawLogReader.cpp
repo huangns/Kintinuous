@@ -32,6 +32,7 @@ RawLogReader::RawLogReader()
   //  fp = fopen(ConfigArgs::get().logFile.c_str(), "rb");
 
   currentFrame = 0;
+  double dfy = atof( pd.getData("fy").c_str() );
 
   //  assert(fread(&numFrames, sizeof(int32_t), 1, fp));
     
@@ -100,7 +101,16 @@ RawLogReader::RawLogReader()
 	stringstream stream(temp);
 	if(temp[0] !='#')
 	{
-	stream >> timestamp_temp_rgb; stream >> depthname;stream >> timestamp_temp_depth; stream >> rgbname;
+	 if(dfy<0)
+	{
+	  stream >> timestamp_temp_rgb; stream >> depthname;stream >> timestamp_temp_depth; stream >> rgbname;
+	} 
+	else
+	{
+	  stream >> timestamp_temp_rgb; stream >> rgbname;stream >> timestamp_temp_depth; stream >> depthname;
+	} 
+	  
+	//stream >> timestamp_temp_rgb; stream >> depthname;stream >> timestamp_temp_depth; stream >> rgbname;
 	//stream >> timestamp_temp_rgb; stream >> rgbname;stream >> timestamp_temp_depth; stream >> depthname;
 	timestamps.push_back((int64_t)(timestamp_temp_rgb*1000000));
 	rgbNames.push_back(defaultname+rgbname);

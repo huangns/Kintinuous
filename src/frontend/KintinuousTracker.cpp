@@ -63,7 +63,8 @@
 #include <boost/thread.hpp>
 #include <opencv2/opencv.hpp>
 #include <boost/filesystem.hpp>
-
+#include <sstream>
+#include <fstream>
 #include "../utils/ConfigArgs.h"
 #include "KintinuousTracker.h"
 #include "Volume.h"
@@ -464,8 +465,10 @@ void KintinuousTracker::processFrame(const DeviceArray2D<unsigned short>& depth_
 
     if(icp || ConfigArgs::get().useRGBDICP || !ConfigArgs::get().disableColorAngleWeight)
     {
-        bilateralFilter(depth_raw, depths_curr_[0]);
-
+        createVMap(intr(0), depth_raw, vmaps_curr_[0]);
+	createNMap(vmaps_curr_[0], nmaps_curr_[0]);
+        bilateralFilter2(depth_raw, depths_curr_[0],nmaps_curr_[0]);
+//bilateralFilter(depth_raw, depths_curr_[0]);
         for (int i = 1; i < ICPOdometry::LEVELS; ++i)
         {
             pyrDown(depths_curr_[i-1], depths_curr_[i]);
@@ -560,7 +563,38 @@ void KintinuousTracker::processFrame(const DeviceArray2D<unsigned short>& depth_
     Eigen::Vector3f tprev = tvecs_[tvecs_.size() - 1];
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rcurr = Rprev;
     Eigen::Vector3f tcurr = tprev;
-
+    static std::ofstream frontDebug("frontDebug.txt");
+    frontDebug<<"***********************************************"<<std::endl;
+    frontDebug<<"before: \n Rcurr: \n"<<Rcurr<<std::endl;
+    frontDebug<<"tcurr: "<<tcurr.transpose()<<std::endl;
+    if(false&&rmats_.size()>=2)
+    {
+      std::cout<<"&&&&&&&&&&&"<<std::endl;
+      
+      Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rprevprev = rmats_[rmats_.size() - 2];
+      Eigen::Vector3f tprevprev = tvecs_[tvecs_.size() - 2];
+      Eigen::Matrix<float, 4, 4, Eigen::RowMajor> Tprevprev;
+      Tprevprev.setIdentity();
+      Tprevprev.block<3,3>(0,0) = Rprevprev;
+      Tprevprev.block<3,1>(0,3)=tprevprev;
+      
+      Eigen::Matrix<float, 4, 4, Eigen::RowMajor> Tprev;
+      Tprev.setIdentity();
+      Tprev.block<3,3>(0,0) = Rprev;
+      Tprev.block<3,1>(0,3)=tprev;
+      
+      Eigen::Matrix<float, 4, 4, Eigen::RowMajor> deltaT = Tprevprev.inverse() * Tprev;
+      Eigen::Matrix<float, 4, 4, Eigen::RowMajor> T = Tprev*deltaT;
+      Rcurr = T.block<3,3>(0,0);
+      tcurr=T.block<3,1>(0,3);
+      
+      frontDebug<<"Tprevprev:\n"<<Tprevprev<<std::endl;
+      frontDebug<<"Tprev:\n"<<Tprev<<std::endl;
+      frontDebug<<"deltaT:\n"<<deltaT<<std::endl;
+      frontDebug<<"T:\n"<<T<<std::endl;
+    }
+      frontDebug<<"after: \n Rcurr: \n"<<Rcurr<<std::endl;
+    frontDebug<<"tcurr: "<<tcurr.transpose()<<std::endl;
     TICK("Odometry");
     lastOdometry = odometryProvider->getIncrementalTransformation(tcurr,
                                                                   Rcurr,
@@ -577,7 +611,11 @@ void KintinuousTracker::processFrame(const DeviceArray2D<unsigned short>& depth_
     //save tranform
     rmats_.push_back(Rcurr);
     tvecs_.push_back(tcurr);
-
+    Eigen::Matrix<float, 4, 4, Eigen::RowMajor> nT;
+    nT.setIdentity();
+    nT.block<3,3>(0,0) = Rcurr;
+    nT.block<3,1>(0,3)=tcurr;
+    frontDebug<<"nT:\n"<<nT<<std::endl;
     Eigen::Vector3f initialTrans = volumeBasis;
     initialTrans(0) -= Volume::get().getVolumeSize() * 0.5;
     initialTrans(1) -= Volume::get().getVolumeSize() * 0.5;

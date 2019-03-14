@@ -170,17 +170,20 @@ CloudSlice::Odometry RGBDOdometry::getIncrementalTransformation(Eigen::Vector3f 
                                                                 unsigned char * rgbImage,
                                                                 unsigned short * depthData)
 {
+  //std::cout<<"lalala...."<<std::endl;
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rprev = rmats_[rmats_.size() - 1];
     Eigen::Vector3f tprev = tvecs_[tvecs_.size() - 1];
-    Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rcurr = Rprev;
-    Eigen::Vector3f tcurr = tprev;
+    //Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rcurr = Rprev;
+    //Eigen::Vector3f tcurr = tprev;
+    Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rcurr = rot;
+    Eigen::Vector3f tcurr = trans;
 
     Eigen::Matrix<float, 3, 3, Eigen::RowMajor> Rprev_inv = Rprev.inverse();
     Mat33 & device_Rprev_inv = device_cast<Mat33>(Rprev_inv);
     float3& device_tprev = device_cast<float3>(tprev);
-
+//高斯金字塔，由粗到细
     populateRGBDData(depth, image, &nextDepth[0], &nextImage[0]);
-
+//梯度图像
     for(int i = 0; i < NUM_PYRS; i++)
     {
         computeDerivativeImages(nextImage[i], nextdIdx[i], nextdIdy[i]);

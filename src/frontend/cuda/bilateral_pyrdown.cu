@@ -52,7 +52,9 @@
  */
 
 #include "device.hpp"
-
+#include <boost/concept_check.hpp>
+#include <stdio.h>
+#include <cuda_runtime.h>
 const float sigma_color = 30;     //in mm
 const float sigma_space = 4.5;     // in pixels
 
@@ -95,6 +97,216 @@ bilateralKernel (const PtrStepSz<unsigned short> src,
   }
 
   int res = __float2int_rn (sum1 / sum2);
+  dst.ptr (y)[x] = max (0, min (res, numeric_limits<short>::max ()));
+}
+
+__global__ void
+bilateralKernel2 (const PtrStepSz<unsigned short> src,
+                 PtrStep<unsigned short> dst,
+                 float sigma_space2_inv_half, float sigma_color2_inv_half)
+{
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+  if (x >= src.cols || y >= src.rows)
+    return;
+
+  const int R = 6;       //static_cast<int>(sigma_space * 1.5);
+  //const int D = R * 2 + 1;
+const int D=3;
+const float theta =  0.52360;
+
+  int value = src.ptr (y)[x];
+
+  int tx = min (x - D / 2 + D, src.cols - 1);
+  int ty = min (y - D / 2 + D, src.rows - 1);
+
+  float sum1 = 0;
+  float sum2 = 0;
+
+  for (int cy = max (y - D / 2, 0); cy < ty; ++cy)
+  {
+    for (int cx = max (x - D / 2, 0); cx < tx; ++cx)
+    {
+      int tmp = src.ptr (cy)[cx];
+
+      float space2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      float color2 = (value - tmp) * (value - tmp);
+//sigma_space2_inv_half = 0.5/(0.8+0.035*theta/(1.0472))/(0.8+0.035*theta/(1.0472));
+sigma_color2_inv_half = 0.5/(0.0012+0.0019*(tmp-0.4)*(tmp-0.4))/(0.0012+0.0019*(tmp-0.4)*(tmp-0.4));
+      float weight = __expf (-(space2 * sigma_space2_inv_half + color2 * sigma_color2_inv_half));
+
+      sum1 += tmp * weight;
+      sum2 += weight;
+    }
+  }
+
+  int res = __float2int_rn (sum1 / sum2);
+  dst.ptr (y)[x] = max (0, min (res, numeric_limits<short>::max ()));
+}
+
+__global__ void
+bilateralKernel3 (const PtrStepSz<unsigned short> src,
+                 PtrStep<unsigned short> dst,
+                 float sigma_space2_inv_half, float sigma_color2_inv_half)
+{
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+  if (x >= src.cols || y >= src.rows)
+    return;
+
+//  const int R = 6;       //static_cast<int>(sigma_space * 1.5);
+  //const int D = R * 2 + 1;
+const int D=3;
+float theta =  0.52360f;
+const float pi_2 = 1.5708;
+  int value = src.ptr (y)[x];
+  
+  int tx = min (x +D, src.cols - 1);
+  int ty = min (y +D, src.rows - 1);
+  
+  float sum1 = 0;
+  float sum2 = 0;
+sigma_space2_inv_half = 0.5f/((0.8f+0.035f*theta/(pi_2-theta))*(0.8f+0.035f*theta/(pi_2-theta)));
+//sigma_color2_inv_half = 0.5f/( (0.0012f+0.0019*(value/1000.0-0.4)*(value/1000.0-0.4)) * (0.0012+0.0019*(value/1000.0-0.4)*(value/1000.0-0.4)) );
+  sigma_color2_inv_half = 0.5f/(1000000.0f* (0.0012f+0.0019*(value/1000.0-0.4)*(value/1000.0-0.4)) * (0.0012+0.0019*(value/1000.0-0.4)*(value/1000.0-0.4)) );
+  for (int cy = max (y - D, 0); cy < ty; ++cy)
+  {
+    for (int cx = max (x - D, 0); cx < tx; ++cx)
+    {
+      int tmp = src.ptr (cy)[cx];
+      int tmp1;
+      int tmp2;
+      float space2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      float color2 = (value - tmp) * (value - tmp);
+//sigma_space2_inv_half = 0.5f/((0.8f+0.035f*theta/(pi_2-theta))*(0.8f+0.035f*theta/(pi_2-theta)));
+//sigma_color2_inv_half = 0.5/(0.0012+0.0019*(tmp-0.4)*(tmp-0.4))/(0.0012+0.0019*(tmp-0.4)*(tmp-0.4));
+  //sigma_color2_inv_half = 0.5f/( (0.0012f+0.0019*(tmp/1000.0-0.4)*(tmp/1000.0-0.4)) * (0.0012+0.0019*(tmp/1000.0-0.4)*(tmp/1000.0-0.4)) );
+  
+      float weight = __expf (-(space2 * sigma_space2_inv_half + color2 * sigma_color2_inv_half));
+//printf("tmp: %d, depth: %f\n",tmp,tmp/1000.0f);
+      sum1 += tmp * weight;
+      sum2 += weight;
+    }
+  }
+//int res = value;
+  int res = __float2int_rn (sum1 / sum2);
+  dst.ptr (y)[x] = max (0, min (res, numeric_limits<short>::max ()));
+}
+
+__global__ void
+bilateralKernel4 (const PtrStepSz<unsigned short> src,
+                 PtrStep<unsigned short> dst,
+                 float sigma_space2_inv_half, float sigma_color2_inv_half)
+{
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+  if (x >= src.cols || y >= src.rows)
+    return;
+
+  const int R = 6;       //static_cast<int>(sigma_space * 1.5);
+  const int D = R * 2 + 1;
+float theta =  0.52360f;
+const float pi_2 = 1.5708;
+  int value = src.ptr (y)[x];
+
+  int tx = min (x - D / 2 + D, src.cols - 1);
+  int ty = min (y - D / 2 + D, src.rows - 1);
+
+  float sum1 = 0;
+  float sum2 = 0;
+ sigma_space2_inv_half = 0.5f/((0.8f+0.035f*theta/(pi_2-theta))*(0.8f+0.035f*theta/(pi_2-theta)));
+ sigma_color2_inv_half = 0.5f/((1.2f+1.9*(value-400)*(value-400)) * (1.2f+1.9*(value-400)*(value-400)) );
+  for (int cy = max (y - D / 2, 0); cy < ty; ++cy)
+  {
+    for (int cx = max (x - D / 2, 0); cx < tx; ++cx)
+    {
+      int tmp = src.ptr (cy)[cx];
+     // if(tmp==0) continue;
+
+      float space2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      float color2 = (value - tmp) * (value - tmp);
+
+      float weight = __expf (-(space2 * sigma_space2_inv_half + color2 * sigma_color2_inv_half));
+
+      sum1 += tmp * weight;
+      sum2 += weight;
+    }
+  }
+
+  int res = __float2int_rn (sum1 / sum2);
+  dst.ptr (y)[x] = max (0, min (res, numeric_limits<short>::max ()));
+}
+
+
+__global__ void
+bilateralKernel5 (const PtrStepSz<unsigned short> src,
+                 PtrStep<unsigned short> dst,
+                 float sigma_space2_inv_half, float sigma_color2_inv_half,PtrStep<float> nmap)
+{
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+
+  if (x >= src.cols || y >= src.rows)
+    return;
+  float theta =  0.52360f;
+
+  
+ float z =  nmap.ptr(y + 2 * src.rows)[x];
+  
+if(z == numeric_limits<float>::quiet_NaN ())
+{
+  theta=0.52360f;
+}else
+{
+  theta = acos(abs(z));
+}
+//theta = acos(abs(z));
+ theta=0.52360f;//0.78540
+ //theta=0.34907f;//0.78540
+  const int R = 6;       //static_cast<int>(sigma_space * 1.5);
+  const int D = R * 2 + 1;
+
+const float pi_2 = 1.5708;
+  int value = src.ptr (y)[x];
+
+  int tx = min (x - D / 2 + D, src.cols - 1);
+  int ty = min (y - D / 2 + D, src.rows - 1);
+
+  float sum1 = 0;
+  float sum2 = 0;
+  float sigma2=1.0;
+ 
+  if(theta<1.0472)
+  {
+    sigma2 = (1.2f+1.9*(value-400)*(value-400));
+  }else
+  {
+    sigma2= (1.2f+1.9*(value-400)*(value-400)) + 0.1*theta*theta/(pi_2-theta)/(pi_2-theta)/(sqrt(1.0f*value));
+  }
+ sigma_space2_inv_half = 0.5f/((0.8f+0.035f*theta/(pi_2-theta))*(0.8f+0.035f*theta/(pi_2-theta)));
+ //sigma_color2_inv_half = 0.5f/((1.2f+1.9*(value-400)*(value-400)) * (1.2f+1.9*(value-400)*(value-400)) );
+  sigma_color2_inv_half = 0.5f/(sigma2* sigma2); 
+ for (int cy = max (y - D / 2, 0); cy < ty; ++cy)
+  {
+    for (int cx = max (x - D / 2, 0); cx < tx; ++cx)
+    {
+      int tmp = src.ptr (cy)[cx];
+     // if(tmp==0) continue;
+
+      float space2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      float color2 = (value - tmp) * (value - tmp);
+
+      float weight = __expf (-(space2 * sigma_space2_inv_half + color2 * sigma_color2_inv_half));
+
+      sum1 += tmp * weight;
+      sum2 += weight;
+    }
+  }
+int res =value;
+//  int res = __float2int_rn (sum1 / sum2);
   dst.ptr (y)[x] = max (0, min (res, numeric_limits<short>::max ()));
 }
 
@@ -337,6 +549,18 @@ bilateralFilter (const DeviceArray2D<unsigned short>& src, DeviceArray2D<unsigne
 
   cudaFuncSetCacheConfig (bilateralKernel, cudaFuncCachePreferL1);
   bilateralKernel<<<grid, block>>>(src, dst, 0.5f / (sigma_space * sigma_space), 0.5f / (sigma_color * sigma_color));
+
+  cudaSafeCall ( cudaGetLastError () );
+};
+
+void
+bilateralFilter2(const DeviceArray2D<unsigned short>& src, DeviceArray2D<unsigned short>& dst,const DeviceArray2D<float>& nmap)
+{
+  dim3 block (32, 8);
+  dim3 grid (divUp (src.cols (), block.x), divUp (src.rows (), block.y));
+
+  cudaFuncSetCacheConfig (bilateralKernel5, cudaFuncCachePreferL1);
+  bilateralKernel5<<<grid, block>>>(src, dst, 0.5f / (sigma_space * sigma_space), 0.5f / (sigma_color * sigma_color),nmap);
 
   cudaSafeCall ( cudaGetLastError () );
 };

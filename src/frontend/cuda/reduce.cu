@@ -253,16 +253,75 @@ struct ICPReduction
         return (sine < angleThres && dist <= distThres && !isnan (ncurr.x) && !isnan (nprev_g.x));
     }
 
+    
+    __device__ __forceinline__ bool
+    searchlocal (int & x, int & y, float3& n, float3& d, float3& s,float3& nlocal,float3& dlocal) const
+    {
+        float3 vcurr;
+        vcurr.x = vmap_curr.ptr (y       )[x];
+        vcurr.y = vmap_curr.ptr (y + rows)[x];
+        vcurr.z = vmap_curr.ptr (y + 2 * rows)[x];
+
+        float3 vcurr_g = Rcurr * vcurr + tcurr;
+        float3 vcurr_cp = Rprev_inv * (vcurr_g - tprev);
+
+        int2 ukr;
+        ukr.x = __float2int_rn (vcurr_cp.x * intr.fx / vcurr_cp.z + intr.cx);
+        ukr.y = __float2int_rn (vcurr_cp.y * intr.fy / vcurr_cp.z + intr.cy);
+
+        if(ukr.x < 0 || ukr.y < 0 || ukr.x >= cols || ukr.y >= rows || vcurr_cp.z < 0)
+            return false;
+
+        float3 vprev_g;
+        vprev_g.x = __ldg(&vmap_g_prev.ptr (ukr.y       )[ukr.x]);
+        vprev_g.y = __ldg(&vmap_g_prev.ptr (ukr.y + rows)[ukr.x]);
+        vprev_g.z = __ldg(&vmap_g_prev.ptr (ukr.y + 2 * rows)[ukr.x]);
+
+        float3 ncurr;
+        ncurr.x = nmap_curr.ptr (y)[x];
+        ncurr.y = nmap_curr.ptr (y + rows)[x];
+        ncurr.z = nmap_curr.ptr (y + 2 * rows)[x];
+
+        float3 ncurr_g = Rcurr * ncurr;
+
+        float3 nprev_g;
+        nprev_g.x =  __ldg(&nmap_g_prev.ptr (ukr.y)[ukr.x]);
+        nprev_g.y = __ldg(&nmap_g_prev.ptr (ukr.y + rows)[ukr.x]);
+        nprev_g.z = __ldg(&nmap_g_prev.ptr (ukr.y + 2 * rows)[ukr.x]);
+
+        float dist = norm (vprev_g - vcurr_g);
+        float sine = norm (cross (ncurr_g, nprev_g));
+
+        n = nprev_g;
+        d = vprev_g;
+        s = vcurr_g;
+	dlocal=vcurr;
+	nlocal = ncurr;
+        return (sine < angleThres && dist <= distThres && !isnan (ncurr.x) && !isnan (nprev_g.x));
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     __device__ __forceinline__ JtJJtrSE3
     getProducts(int & i) const
     {
-        int y = i / cols;
+        int y = i / cols;//根据索引定坐标
         int x = i - (y * cols);
 
         float3 n_cp, d_cp, s_cp;
-
-        bool found_coresp = search (x, y, n_cp, d_cp, s_cp);
-
+	float3 nlocal,dlocal;
+        //bool found_coresp = search (x, y, n_cp, d_cp, s_cp);
+	bool found_coresp = searchlocal(x,y,n_cp,d_cp,s_cp,nlocal,dlocal);
         float row[7] = {0, 0, 0, 0, 0, 0, 0};
 
         if(found_coresp)
@@ -275,6 +334,51 @@ struct ICPReduction
             *(float3*)&row[3] = cross (s_cp, n_cp);
             row[6] = dot (n_cp, s_cp - d_cp);
         }
+        
+        float sigmamin = 0.0012;
+	float sigmanow=1.0;
+	float theta =acos(abs( nlocal.z));
+	if(theta<1.0472)
+	  sigmanow = 0.0012+0.0019*(dlocal.z-0.4)*(dlocal.z-0.4);
+	else
+	  sigmanow = 0.0012+0.0019*(dlocal.z-0.4)*(dlocal.z-0.4)+0.0001*theta*theta/(1.5708-theta)/(sqrt(dlocal.z));
+	float nw = sigmamin/sigmanow;
+        /*
+	JtJJtrSE3 values = {row[0] * row[0]*nw,
+                            row[0] * row[1]*nw,
+                            row[0] * row[2]*nw,
+                            row[0] * row[3]*nw,
+                            row[0] * row[4]*nw,
+                            row[0] * row[5]*nw,
+                            row[0] * row[6]*nw,
+
+                            row[1] * row[1]*nw,
+                            row[1] * row[2]*nw,
+                            row[1] * row[3]*nw,
+                            row[1] * row[4]*nw,
+                            row[1] * row[5]*nw,
+                            row[1] * row[6]*nw,
+
+                            row[2] * row[2]*nw,
+                            row[2] * row[3]*nw,
+                            row[2] * row[4]*nw,
+                            row[2] * row[5]*nw,
+                            row[2] * row[6]*nw,
+
+                            row[3] * row[3]*nw,
+                            row[3] * row[4]*nw,
+                            row[3] * row[5]*nw,
+                            row[3] * row[6]*nw,
+
+                            row[4] * row[4]*nw,
+                            row[4] * row[5]*nw,
+                            row[4] * row[6]*nw,
+
+                            row[5] * row[5]*nw,
+                            row[5] * row[6]*nw,
+
+                            row[6] * row[6]*nw,
+                            found_coresp};*/
 
         JtJJtrSE3 values = {row[0] * row[0],
                             row[0] * row[1],
@@ -311,7 +415,9 @@ struct ICPReduction
 
                             row[6] * row[6],
                             found_coresp};
-
+			   
+	
+	
         return values;
     }
 
